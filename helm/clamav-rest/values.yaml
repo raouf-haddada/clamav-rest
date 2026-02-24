@@ -1,0 +1,323 @@
+# -- Number of replicas
+replicaCount: 2
+
+image:
+  # -- Container image repository
+  repository: docker.io/ajilaag/clamav-rest
+  # -- Image pull policy
+  pullPolicy: IfNotPresent
+  # -- Overrides the image tag (default is the chart appVersion)
+  tag: ""
+
+# -- Image pull secrets for private registries
+imagePullSecrets: []
+# -- Override the chart name
+nameOverride: ""
+# -- Override the full release name
+fullnameOverride: ""
+
+serviceAccount:
+  # -- Create a ServiceAccount
+  create: true
+  # -- Annotations to add to the ServiceAccount
+  annotations: {}
+  # -- The name of the ServiceAccount to use (generated if not set)
+  name: ""
+
+# -- Annotations to add to the pod
+podAnnotations: {}
+
+# -- Labels to add to the pod
+podLabels: {}
+
+# -- Pod-level security context
+podSecurityContext:
+  fsGroup: 101
+
+# -- Container-level security context
+securityContext:
+  runAsUser: 100
+  runAsGroup: 101
+  runAsNonRoot: true
+  readOnlyRootFilesystem: false
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+
+# =============================================================================
+# ClamAV Configuration
+# =============================================================================
+# All environment variables from the Dockerfile with their defaults.
+# These are injected into the container via a ConfigMap.
+config:
+  # -- REST API HTTP port
+  port: 9000
+  # -- REST API HTTPS port (requires TLS certs)
+  sslPort: 9443
+  # -- Amount of data scanned for each file
+  maxScanSize: "100M"
+  # -- Do not scan files larger than this
+  maxFileSize: "25M"
+  # -- Nested archive recursion depth
+  maxRecursion: 16
+  # -- Number of files to scan within an archive
+  maxFiles: 10000
+  # -- Maximum file size for embedded PE
+  maxEmbeddedPE: "10M"
+  # -- Maximum size of HTML to normalize
+  maxHtmlNormalize: "10M"
+  # -- Maximum size of normalized HTML file to scan
+  maxHtmlNoTags: "2M"
+  # -- Maximum size of a script to normalize
+  maxScriptNormalize: "5M"
+  # -- Maximum size of ZIP to reanalyze type recognition
+  maxZipTypeRcg: "1M"
+  # -- How many partitions per raw disk to scan
+  maxPartitions: 50
+  # -- How many icons in PE to scan
+  maxIconsPE: 100
+  # -- Timeout waiting for ClamAV to start (seconds)
+  maxReconnectTime: 30
+  # -- Maximum PCRE match calls
+  pcreMatchLimit: 100000
+  # -- Maximum recursive PCRE match calls
+  pcreRecMatchLimit: 2000
+  # -- Daily signature update checks (1-50)
+  signatureChecks: 2
+  # -- CORS allowed origins (semicolon-separated, "*" for all)
+  allowOrigins: "*"
+  # -- Timezone
+  timezone: "Europe/Zurich"
+
+# -- Extra environment variables to inject into the container
+# Example:
+#   extraEnv:
+#     - name: MY_VAR
+#       value: "my-value"
+extraEnv: []
+
+# =============================================================================
+# Proxy Configuration (for freshclam signature updates)
+# =============================================================================
+proxy:
+  # -- Proxy server hostname
+  server: ""
+  # -- Proxy server port
+  port: ""
+  # -- Proxy username
+  username: ""
+  # -- Proxy password (stored in a Kubernetes Secret)
+  password: ""
+  # -- Use an existing Secret for the proxy password
+  existingSecret: ""
+  # -- Key in the existing Secret that holds the password
+  existingSecretKey: "proxy-password"
+
+# =============================================================================
+# TLS Configuration
+# =============================================================================
+tls:
+  # -- Enable TLS (mount certs into /etc/ssl/clamav-rest/)
+  enabled: false
+  # -- Name of an existing TLS Secret (type kubernetes.io/tls)
+  existingSecret: ""
+  # -- Inline certificate (PEM). Ignored if existingSecret is set.
+  cert: ""
+  # -- Inline private key (PEM). Ignored if existingSecret is set.
+  key: ""
+
+# =============================================================================
+# Custom freshclam.conf
+# =============================================================================
+freshclamConfig:
+  # -- Mount a custom freshclam.conf (overrides signatureChecks and proxy settings)
+  enabled: false
+  # -- Name of an existing ConfigMap containing a 'freshclam.conf' key
+  existingConfigMap: ""
+  # -- Inline freshclam.conf content. Ignored if existingConfigMap is set.
+  # Must include: Foreground yes, DatabaseDirectory /clamav/data,
+  # NotifyClamd /clamav/etc/clamd.conf
+  config: ""
+  # Example:
+  #   config: |
+  #     Foreground yes
+  #     DatabaseDirectory /clamav/data
+  #     NotifyClamd /clamav/etc/clamd.conf
+  #     Checks 2
+  #     DatabaseMirror database.clamav.net
+
+# =============================================================================
+# Persistence (virus signature database)
+# =============================================================================
+persistence:
+  # -- Enable PVC for /clamav/data
+  enabled: false
+  # -- Use an existing PVC
+  existingClaim: ""
+  # -- Storage class (empty uses cluster default)
+  storageClass: ""
+  # -- Access modes
+  accessModes:
+    - ReadWriteOnce
+  # -- Volume size
+  size: 2Gi
+  # -- Annotations for the PVC
+  annotations: {}
+
+# =============================================================================
+# Service
+# =============================================================================
+service:
+  # -- Service type
+  type: ClusterIP
+  # -- External HTTP port
+  httpPort: 9000
+  # -- External HTTPS port
+  httpsPort: 443
+  # -- Annotations for the Service
+  annotations: {}
+
+# =============================================================================
+# Ingress
+# =============================================================================
+ingress:
+  # -- Enable Ingress
+  enabled: false
+  # -- Ingress class name
+  className: ""
+  # -- Annotations for the Ingress
+  annotations: {}
+  # -- Ingress hosts
+  hosts:
+    - host: clamav-rest.local
+      paths:
+        - path: /
+          pathType: Prefix
+  # -- Ingress TLS configuration
+  tls: []
+
+# =============================================================================
+# Resources
+# =============================================================================
+# -- Container resource requests and limits
+resources:
+  requests:
+    cpu: 100m
+    memory: 2000Mi
+  limits:
+    cpu: 200m
+    memory: 2500Mi
+
+# =============================================================================
+# Health Probes
+# =============================================================================
+# -- Liveness probe configuration
+livenessProbe:
+  httpGet:
+    path: /
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 60
+  failureThreshold: 3
+
+# -- Readiness probe configuration
+readinessProbe:
+  httpGet:
+    path: /
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 20
+  failureThreshold: 10
+
+# =============================================================================
+# Deployment Strategy
+# =============================================================================
+# -- Deployment update strategy
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 1
+    maxUnavailable: 0
+
+# -- Minimum seconds a pod must be ready before considered available
+minReadySeconds: 20
+
+# =============================================================================
+# Scheduling
+# =============================================================================
+# -- Tolerations for pod scheduling
+tolerations:
+  - key: "node.kubernetes.io/unreachable"
+    operator: "Exists"
+    effect: "NoExecute"
+    tolerationSeconds: 30
+  - key: "node.kubernetes.io/not-ready"
+    operator: "Exists"
+    effect: "NoExecute"
+    tolerationSeconds: 30
+
+# -- Node selector for pod scheduling
+nodeSelector: {}
+
+# -- Affinity rules for pod scheduling
+affinity: {}
+
+# -- Topology spread constraints for pod scheduling
+topologySpreadConstraints: []
+
+# =============================================================================
+# Prometheus / Monitoring
+# =============================================================================
+metrics:
+  serviceMonitor:
+    # -- Deploy a ServiceMonitor (requires Prometheus Operator)
+    enabled: false
+    # -- Namespace for the ServiceMonitor (defaults to release namespace)
+    namespace: ""
+    # -- Scrape interval
+    interval: 60s
+    # -- Scrape path
+    path: /metrics
+    # -- Scrape scheme (http or https)
+    scheme: http
+    # -- TLS config for scraping
+    tlsConfig: {}
+    # -- Additional labels for the ServiceMonitor
+    additionalLabels: {}
+    # -- Relabeling configs
+    relabelings: []
+    # -- Metric relabeling configs
+    metricRelabelings: []
+
+# =============================================================================
+# Network Policy
+# =============================================================================
+networkPolicy:
+  # -- Enable NetworkPolicy (default-deny ingress + allow Prometheus)
+  enabled: false
+  # -- Namespace selector for Prometheus
+  prometheusNamespaceSelector:
+    matchLabels:
+      name: monitoring
+  # -- Pod selector for Prometheus
+  prometheusPodSelector:
+    matchLabels:
+      app: prometheus
+  # -- Additional ingress rules
+  additionalIngress: []
+
+# =============================================================================
+# Horizontal Pod Autoscaler
+# =============================================================================
+autoscaling:
+  # -- Enable HPA
+  enabled: false
+  # -- Minimum replicas
+  minReplicas: 2
+  # -- Maximum replicas
+  maxReplicas: 10
+  # -- Target CPU utilization percentage
+  targetCPUUtilizationPercentage: 80
+  # -- Target memory utilization percentage (uncomment to enable)
+  # targetMemoryUtilizationPercentage: 80

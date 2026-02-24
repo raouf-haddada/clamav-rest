@@ -1,0 +1,41 @@
+{{- if .Values.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "clamav-rest.fullname" . }}-default-deny
+  labels:
+    {{- include "clamav-rest.labels" . | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "clamav-rest.fullname" . }}-allow-prometheus
+  labels:
+    {{- include "clamav-rest.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "clamav-rest.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            {{- toYaml .Values.networkPolicy.prometheusNamespaceSelector | nindent 12 }}
+        - podSelector:
+            {{- toYaml .Values.networkPolicy.prometheusPodSelector | nindent 12 }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.config.port }}
+        {{- if .Values.tls.enabled }}
+        - protocol: TCP
+          port: {{ .Values.config.sslPort }}
+        {{- end }}
+    {{- with .Values.networkPolicy.additionalIngress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+{{- end }}

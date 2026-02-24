@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ include "clamav-rest.fullname" . }}-test-connection"
+  labels:
+    {{- include "clamav-rest.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['{{ include "clamav-rest.fullname" . }}:{{ .Values.service.httpPort }}']
+  restartPolicy: Never

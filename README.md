@@ -216,13 +216,17 @@ docker run -p 9000:9000 -p 9443:9443 \
   -itd --name clamav-rest ajilaag/clamav-rest
 ```
 
-**Kubernetes:**
+**Kubernetes (Helm):**
 
-Create a TLS secret and mount it as a volume. See the commented-out examples in `kubernetes_example/deployment.yaml`:
+Create a TLS secret and enable it in the Helm values:
 
 ```bash
 kubectl create secret tls clamav-rest-tls \
   --cert=server.crt --key=server.key -n clamav-rest
+
+helm install clamav-rest helm/clamav-rest \
+  --set tls.enabled=true \
+  --set tls.existingSecret=clamav-rest-tls
 ```
 
 You can also override the certificate paths using the `SSL_CERT` and `SSL_KEY` environment variables.
@@ -249,9 +253,28 @@ docker run -p 9000:9000 \
   -itd --name clamav-rest ajilaag/clamav-rest
 ```
 
-**Kubernetes:**
+**Kubernetes (Helm):**
 
-Add the configuration to a ConfigMap and mount it as a volume. See the commented-out examples in `kubernetes_example/configmap.yaml` and `kubernetes_example/deployment.yaml`.
+Enable custom freshclam.conf in the Helm values:
+
+```bash
+helm install clamav-rest helm/clamav-rest \
+  --set freshclamConfig.enabled=true \
+  --set-file freshclamConfig.config=/path/to/freshclam.conf
+```
+
+Or define it inline in your `values.yaml`:
+
+```yaml
+freshclamConfig:
+  enabled: true
+  config: |
+    Foreground yes
+    DatabaseDirectory /clamav/data
+    NotifyClamd /clamav/etc/clamd.conf
+    Checks 2
+    DatabaseMirror database.clamav.net
+```
 
 ### Networking
 
@@ -263,8 +286,33 @@ Add the configuration to a ConfigMap and mount it as a volume. See the commented
 
 ### Running on Kubernetes
 
-Please refer to the `kubernetes_example/` folder on how to configure the service.  
-A way to mount a data directory from a pvc has been added to the manifest. Uncomment it to use it.
+A Helm chart is provided in the `helm/clamav-rest/` directory for deploying to Kubernetes.
+
+**Quick start:**
+
+```bash
+helm install clamav-rest helm/clamav-rest -n clamav-rest --create-namespace
+```
+
+**With custom values:**
+
+```bash
+helm install clamav-rest helm/clamav-rest \
+  -n clamav-rest --create-namespace \
+  -f my-values.yaml
+```
+
+All configuration options are documented in [`helm/clamav-rest/values.yaml`](helm/clamav-rest/values.yaml). Key optional features that can be enabled:
+
+| Feature | Values key | Description |
+| ------- | ---------- | ----------- |
+| TLS | `tls.enabled` | Mount TLS certificates for HTTPS |
+| Custom freshclam.conf | `freshclamConfig.enabled` | Provide a custom freshclam configuration |
+| Persistence | `persistence.enabled` | PVC for virus signature database |
+| Monitoring | `metrics.serviceMonitor.enabled` | Prometheus ServiceMonitor |
+| Network Policy | `networkPolicy.enabled` | Default-deny ingress + allow Prometheus |
+| Ingress | `ingress.enabled` | Kubernetes Ingress resource |
+| Autoscaling | `autoscaling.enabled` | Horizontal Pod Autoscaler |
 
 ## Maintenance / Monitoring
 

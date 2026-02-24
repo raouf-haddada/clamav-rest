@@ -1,0 +1,17 @@
+apiVersion: v2
+name: clamav-rest
+description: ClamAV antivirus scanner with REST API
+type: application
+version: 0.1.0
+appVersion: "latest"
+home: https://github.com/ajilach/clamav-rest
+sources:
+  - https://github.com/ajilach/clamav-rest
+keywords:
+  - clamav
+  - antivirus
+  - malware
+  - scanner
+  - rest-api
+maintainers:
+  - name: ajilach
