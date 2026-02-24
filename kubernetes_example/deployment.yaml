@@ -60,6 +60,11 @@ spec:
         # - name: tls-certs
         #   mountPath: /etc/ssl/clamav-rest
         #   readOnly: true
+        # optional: mount custom freshclam.conf from ConfigMap
+        # - name: freshclam-config
+        #   mountPath: /clamav/etc/freshclam.conf
+        #   subPath: freshclam.conf
+        #   readOnly: true
         # optional: persisting the data directory
         # - name: clamav-data
         #   mountPath: /clamav/data
@@ -74,6 +79,13 @@ spec:
       #       path: server.crt
       #     - key: tls.key
       #       path: server.key
+      # optional: mount custom freshclam.conf from ConfigMap
+      # - name: freshclam-config
+      #   configMap:
+      #     name: clamav-rest-config
+      #     items:
+      #     - key: freshclam.conf
+      #       path: freshclam.conf
       # optional: persisting the data directory
       # - name: clamav-data
       #   persistentVolumeClaim:

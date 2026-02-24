@@ -1,16 +1,35 @@
 #!/bin/bash
 
-cp /etc/clamav/* /clamav/etc/
+# Detect custom freshclam.conf mounted by user
+CUSTOM_FRESHCLAM=false
+if [ -f /clamav/etc/freshclam.conf ]; then
+    CUSTOM_FRESHCLAM=true
+    echo "Custom freshclam.conf detected, skipping default configuration."
+fi
 
-# Replace values in freshclam.conf
-sed -i 's/^#\?NotifyClamd .*$/NotifyClamd \/clamav\/etc\/clamd.conf/g' /clamav/etc/freshclam.conf
-sed -i 's/^#DatabaseDirectory .*$/DatabaseDirectory \/clamav\/data/g' /clamav/etc/freshclam.conf
-sed -i 's/^#\?NotifyClamd .*$/NotifyClamd \/clamav\/etc\/clamd.conf/g' /clamav/etc/freshclam.conf
+# Copy default configs, skipping freshclam.conf if a custom one was mounted
+if [ "$CUSTOM_FRESHCLAM" = true ]; then
+    for f in /etc/clamav/*; do
+        [ "$(basename "$f")" = "freshclam.conf" ] && continue
+        cp "$f" /clamav/etc/
+    done
+else
+    cp /etc/clamav/* /clamav/etc/
+fi
+
+if [ "$CUSTOM_FRESHCLAM" != true ]; then
+    # Replace values in freshclam.conf
+    sed -i 's/^#\?NotifyClamd .*$/NotifyClamd \/clamav\/etc\/clamd.conf/g' /clamav/etc/freshclam.conf
+    sed -i 's/^#DatabaseDirectory .*$/DatabaseDirectory \/clamav\/data/g' /clamav/etc/freshclam.conf
+    sed -i 's/^#\?NotifyClamd .*$/NotifyClamd \/clamav\/etc\/clamd.conf/g' /clamav/etc/freshclam.conf
+
+    # Replace values with environment variables in freshclam.conf
+    sed -i 's/^#\?Checks .*$/Checks '"$SIGNATURE_CHECKS"'/g' /clamav/etc/freshclam.conf
+fi
+
+# Replace values in clamd.conf
 sed -i 's/^#TemporaryDirectory .*$/TemporaryDirectory \/clamav\/tmp/g' /clamav/etc/clamd.conf
 sed -i 's/^#DatabaseDirectory .*$/DatabaseDirectory \/clamav\/data/g' /clamav/etc/clamd.conf
-
-# Replace values with environment variables in freshclam.conf
-sed -i 's/^#\?Checks .*$/Checks '"$SIGNATURE_CHECKS"'/g' /clamav/etc/freshclam.conf
 
 # Replace values with environment variables in clamd.conf
 sed -i 's/^#MaxScanSize .*$/MaxScanSize '"$MAX_SCAN_SIZE"'/g' /clamav/etc/clamd.conf
@@ -29,8 +48,7 @@ sed -i 's/^#PCREMatchLimit.*$/PCREMatchLimit '"$PCRE_MATCHLIMIT"'/g' /clamav/etc
 sed -i 's/^#PCRERecMatchLimit .*$/PCRERecMatchLimit '"$PCRE_RECMATCHLIMIT"'/g' /clamav/etc/clamd.conf
 
 # Use proxy for freshclam
-
-if [ -n "$PROXY_SERVER" ]; then
+if [ "$CUSTOM_FRESHCLAM" != true ] && [ -n "$PROXY_SERVER" ]; then
   sed -i 's~^#HTTPProxyServer .*~HTTPProxyServer '"$PROXY_SERVER"'~g' /clamav/etc/freshclam.conf
 
     # It's not required, but if they also provided a port, then configure it
