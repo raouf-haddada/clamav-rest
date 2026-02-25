@@ -174,7 +174,7 @@ service:
   # -- External HTTP port
   httpPort: 9000
   # -- External HTTPS port
-  httpsPort: 443
+  httpsPort: 9443
   # -- Annotations for the Service
   annotations: {}
 
@@ -306,6 +306,16 @@ networkPolicy:
       app: prometheus
   # -- Additional ingress rules
   additionalIngress: []
+  # -- Additional Cilium egress rules (creates a CiliumNetworkPolicy)
+  # Example:
+  #   ciliumEgressAdditionalRules:
+  #     - toFQDNs:
+  #         - matchName: "database.clamav.net"
+  #       toPorts:
+  #         - ports:
+  #             - port: "443"
+  #               protocol: TCP
+  ciliumEgressAdditionalRules: []
 
 # =============================================================================
 # Horizontal Pod Autoscaler
